@@ -22,6 +22,10 @@ create table if not exists public.leads (
   signal_flags    text,            -- semicolon-separated
   suggested_opener text,
 
+  -- Coaching / mastermind affiliation (positive signal — primed to buy)
+  coaching_score    integer default 0,
+  coaching_signals  text,          -- semicolon-separated affiliations
+
   -- Contact enrichment (from Apollo, optional)
   contact_name    text,
   contact_title   text,
@@ -44,6 +48,7 @@ create table if not exists public.leads (
 create index if not exists leads_owner_idx   on public.leads(owner_id);
 create index if not exists leads_status_idx  on public.leads(status);
 create index if not exists leads_signal_idx  on public.leads(signal_count desc);
+create index if not exists leads_coaching_idx on public.leads(coaching_score desc);
 create unique index if not exists leads_dedupe_idx
   on public.leads(owner_id, dedupe_key);
 

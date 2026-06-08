@@ -23,6 +23,7 @@ CSV_FIELDS = [
     "name", "contact_name", "contact_title", "contact_email", "contact_linkedin",
     "phone", "website", "address", "rating", "review_count",
     "signal_count", "signal_flags", "suggested_opener",
+    "coaching_score", "coaching_signals",
     "category", "search_query", "search_location", "business_status",
 ]
 
@@ -53,8 +54,9 @@ def main():
         for f in CSV_FIELDS:
             lead.setdefault(f, "")
 
-    # Sort: most signals first = warmest outreach targets at the top
-    leads.sort(key=lambda x: x.get("signal_count", 0), reverse=True)
+    # Sort: coaching-group members first (primed to buy), then by signal count.
+    # Net effect: "in a coaching group AND has lots of gaps" rises to the top.
+    leads.sort(key=lambda x: (x.get("coaching_score", 0), x.get("signal_count", 0)), reverse=True)
 
     print("\n" + "=" * 60)
     print(f"STEP 4 — Writing {OUTPUT_CSV}")

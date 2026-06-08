@@ -46,14 +46,59 @@ DIY_PLATFORMS = {"wix": "Wix", "squarespace": "Squarespace",
 CRM_PIXELS = ["hs-script", "hubspot", "salesforce", "marketo", "pardot",
               "google_tag_manager", "gtm.js"]
 
+# Coaching / mastermind / peer-group affiliations. Owners in these groups
+# have typically been told to invest in systems + automation -> warmer lead.
+# Pattern -> human-readable affiliation. Patterns are matched case-insensitively
+# against the homepage HTML.
+COACHING_SIGNALS = {
+    "remodelers advantage": "Remodelers Advantage",
+    "tim faller": "Remodelers Advantage (podcast)",
+    "contractor coalition": "Contractor Coalition",
+    "brad leavitt": "Contractor Coalition (AFT Construction)",
+    "running on eos": "EOS / Traction",
+    "eos worldwide": "EOS / Traction",
+    "eos implemented": "EOS / Traction",
+    "traction by gino wickman": "EOS / Traction",
+    "strategic coach": "Strategic Coach",
+    "scaling up": "Scaling Up (Verne Harnish)",
+    "building better builders": "Building Better Builders",
+    "builder funnel": "Builder Funnel",
+    "the contractor fight": "The Contractor Fight (Tom Reber)",
+    "tom reber": "The Contractor Fight (Tom Reber)",
+    "home service expert": "Home Service Expert (Tommy Mello)",
+    "tommy mello": "Home Service Expert (Tommy Mello)",
+    "vistage": "Vistage Executive Coaching",
+    "profit first": "Profit First (Michalowicz)",
+    "nari member": "NARI Member",
+    "nari-certified": "NARI Certified",
+    "nari certified": "NARI Certified",
+    "nahb remodel": "NAHB Remodelers",
+    "certified remodeler": "NARI Certified Remodeler",
+    "bni member": "BNI",
+    "ewing & ewing": "Ewing peer group",
+    "mastermind group": "Mastermind (generic)",
+    "business coach": "Business coaching (generic)",
+    "business coaching": "Business coaching (generic)",
+}
+
+
+def _detect_coaching(html):
+    """Scan HTML for coaching / mastermind affiliations. Returns deduped list."""
+    found = []
+    for pattern, label in COACHING_SIGNALS.items():
+        if pattern in html and label not in found:
+            found.append(label)
+    return found
+
 
 def audit_site(url):
-    """Return (flags, opener) for a single website URL."""
+    """Return (flags, opener, coaching) for a single website URL."""
     flags = []
+    coaching = []
 
     if not url:
         flags.append("No website listed on Google")
-        return flags, "I noticed your business doesn't have a website listed — that's often the single biggest source of missed leads."
+        return flags, "I noticed your business doesn't have a website listed — that's often the single biggest source of missed leads.", coaching
 
     # Normalize
     if not url.startswith("http"):
@@ -70,7 +115,7 @@ def audit_site(url):
         final_url = resp.url.lower()
     except Exception as e:
         flags.append(f"Website unreachable/erroring ({type(e).__name__})")
-        return flags, "I tried to visit your site and it wouldn't load for me — that could be costing you customers who do the same."
+        return flags, "I tried to visit your site and it wouldn't load for me — that could be costing you customers who do the same.", coaching
 
     # SSL check (look at final URL after redirects)
     if not final_url.startswith("https"):
@@ -104,8 +149,11 @@ def audit_site(url):
     if load_time > 5:
         flags.append(f"Slow site load ({load_time:.1f}s)")
 
+    # Coaching / mastermind affiliations (positive signal — primed-to-buy)
+    coaching = _detect_coaching(html)
+
     opener = _build_opener(flags)
-    return flags, opener
+    return flags, opener, coaching
 
 
 def _build_opener(flags):
@@ -131,9 +179,13 @@ def audit_all(leads):
     """Audit every lead and attach flags + opener + a numeric signal score."""
     for i, lead in enumerate(leads, 1):
         print(f"Auditing {i}/{len(leads)}: {lead['name'][:40]} ...")
-        flags, opener = audit_site(lead.get("website", ""))
+        flags, opener, coaching = audit_site(lead.get("website", ""))
         lead["signal_flags"] = "; ".join(flags)
         lead["signal_count"] = len(flags)
         lead["suggested_opener"] = opener
+        lead["coaching_signals"] = "; ".join(coaching)
+        lead["coaching_score"] = len(coaching)
+        if coaching:
+            print(f"  + coaching: {', '.join(coaching)}")
         time.sleep(0.5)  # don't hammer sites
     return leads

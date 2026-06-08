@@ -46,6 +46,8 @@ def push_leads(leads):
             "signal_count": l.get("signal_count", 0),
             "signal_flags": l.get("signal_flags", ""),
             "suggested_opener": l.get("suggested_opener", ""),
+            "coaching_score": l.get("coaching_score", 0),
+            "coaching_signals": l.get("coaching_signals", ""),
             "contact_name": l.get("contact_name", ""),
             "contact_title": l.get("contact_title", ""),
             "contact_email": l.get("contact_email", ""),
