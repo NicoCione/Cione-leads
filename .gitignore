@@ -1,0 +1,11 @@
+config.py
+*.env
+.env
+index.html
+cione_leads.csv
+cione_leads_progress.csv
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
