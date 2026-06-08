@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cione Leads</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Spline+Sans+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0e0f0d;
+    --surface: #181a16;
+    --surface-2: #21241e;
+    --border: #2e322a;
+    --text: #eef0e8;
+    --muted: #8d9382;
+    --accent: #c8f135;      /* acid lime */
+    --accent-dim: #8fa830;
+    --hot: #ff6b35;
+    --warm: #ffb01f;
+    --cool: #4a9d8e;
+    --new: #6c7283;
+    --won: #c8f135;
+    --dead: #5a4040;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Archivo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+    overflow-x: hidden;
+    background-image: radial-gradient(circle at 15% 0%, rgba(200,241,53,0.06), transparent 40%);
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 14px 120px; }
+
+  /* Header */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(14,15,13,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 14px 12px;
+    margin: 0 -14px 14px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+  .brand h1 {
+    font-size: 22px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase;
+  }
+  .brand .dot { color: var(--accent); }
+  .brand span.sub { font-family: 'Spline Sans Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  /* Stats bar */
+  .stats { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; }
+  .stats::-webkit-scrollbar { display: none; }
+  .stat {
+    flex: 1 0 auto; min-width: 68px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 10px;
+  }
+  .stat .n { font-family: 'Spline Sans Mono', monospace; font-size: 18px; font-weight: 600; }
+  .stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat.accent .n { color: var(--accent); }
+
+  /* Controls */
+  .controls { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .search-row { display: flex; gap: 8px; }
+  input[type=text], select {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 11px 12px; font-family: 'Archivo', sans-serif; font-size: 14px;
+    width: 100%; outline: none; transition: border-color 0.15s;
+  }
+  input[type=text]:focus, select:focus { border-color: var(--accent-dim); }
+  .filter-row { display: flex; gap: 8px; }
+  .filter-row select { flex: 1; }
+
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 6px 13px; font-size: 12px; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .chip.active { background: var(--accent); color: #0e0f0d; border-color: var(--accent); }
+
+  /* Upload zone */
+  .upload {
+    border: 1.5px dashed var(--border); border-radius: 14px; padding: 40px 20px; text-align: center;
+    cursor: pointer; transition: all 0.2s; background: var(--surface);
+  }
+  .upload:hover, .upload.drag { border-color: var(--accent); background: var(--surface-2); }
+  .upload h2 { font-size: 17px; margin-bottom: 6px; }
+  .upload p { color: var(--muted); font-size: 13px; }
+  .upload .ico { font-size: 34px; margin-bottom: 10px; }
+
+  /* Lead card */
+  .lead {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--new);
+    border-radius: 12px; padding: 13px 14px; margin-bottom: 10px; transition: all 0.15s;
+  }
+  .lead.s-contacted { border-left-color: var(--warm); }
+  .lead.s-replied  { border-left-color: var(--cool); }
+  .lead.s-meeting  { border-left-color: var(--accent); }
+  .lead.s-won      { border-left-color: var(--won); background: linear-gradient(90deg, rgba(200,241,53,0.07), var(--surface) 60%); }
+  .lead.s-dead     { border-left-color: var(--dead); opacity: 0.5; }
+
+  .lead-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .lead-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .lead-cat { font-size: 11px; color: var(--muted); font-family: 'Spline Sans Mono', monospace; margin-top: 1px; }
+
+  .score {
+    flex: 0 0 auto; font-family: 'Spline Sans Mono', monospace; font-weight: 600; font-size: 12px;
+    padding: 3px 8px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .score.hot { color: var(--hot); border-color: rgba(255,107,53,0.4); }
+  .score.warm { color: var(--warm); border-color: rgba(255,176,31,0.4); }
+  .score.cool { color: var(--muted); }
+
+  .flags { display: flex; flex-wrap: wrap; gap: 5px; margin: 9px 0; }
+  .flag {
+    font-size: 10.5px; background: var(--surface-2); border: 1px solid var(--border);
+    color: #b9c0a8; padding: 2px 7px; border-radius: 6px; font-weight: 500;
+  }
+
+  .opener {
+    font-size: 13px; color: #cdd3c0; background: var(--surface-2); border-radius: 8px;
+    padding: 9px 11px; margin: 8px 0; font-style: italic; position: relative;
+    border: 1px solid var(--border);
+  }
+  .opener .copy {
+    position: absolute; top: 6px; right: 6px; background: var(--border); border: none; color: var(--text);
+    border-radius: 5px; font-size: 10px; padding: 3px 7px; cursor: pointer; font-family: 'Spline Sans Mono', monospace;
+    font-style: normal;
+  }
+  .opener .copy:active { background: var(--accent); color: #0e0f0d; }
+
+  .contact-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; font-size: 13px; }
+  .contact-row a { color: var(--accent-dim); text-decoration: none; font-weight: 600; }
+  .contact-row .person { color: var(--text); font-weight: 700; }
+  .contact-row .title { color: var(--muted); }
+
+  .lead-actions { display: flex; gap: 7px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .status-select {
+    flex: 1; min-width: 130px; padding: 8px 10px; font-size: 13px; font-weight: 600;
+    border-radius: 9px; cursor: pointer;
+  }
+  .note-btn {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 9px; padding: 8px 12px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .note-btn.has-note { color: var(--accent); border-color: var(--accent-dim); }
+
+  .note-area { margin-top: 9px; display: none; }
+  .note-area.open { display: block; }
+  .note-area textarea {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 9px; padding: 10px; font-family: 'Archivo', sans-serif; font-size: 13px; resize: vertical;
+    min-height: 60px; outline: none;
+  }
+  .note-area textarea:focus { border-color: var(--accent-dim); }
+
+  .empty { text-align: center; color: var(--muted); padding: 50px 20px; font-size: 14px; }
+
+  /* Reset / footer bar */
+  .footbar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+    background: rgba(14,15,13,0.94); backdrop-filter: blur(12px); border-top: 1px solid var(--border);
+    padding: 10px 14px; display: flex; gap: 8px; justify-content: space-between; align-items: center;
+  }
+  .footbar .info { font-size: 12px; color: var(--muted); font-family: 'Spline Sans Mono', monospace; }
+  .footbar button {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 9px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .footbar .export { background: var(--accent); color: #0e0f0d; border-color: var(--accent); }
+  .hidden { display: none !important; }
+
+  .toast {
+    position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--accent); color: #0e0f0d; padding: 10px 18px; border-radius: 10px; font-weight: 700;
+    font-size: 13px; opacity: 0; transition: all 0.25s; z-index: 100; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>CIONE<span class="dot">.</span>LEADS</h1>
+      <span class="sub" id="syncStatus">local</span>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div id="uploadView">
+    <div class="upload" id="uploadZone">
+      <div class="ico">▲</div>
+      <h2>Drop your leads CSV</h2>
+      <p>The <code>cione_leads.csv</code> from your pipeline — or tap to browse</p>
+      <input type="file" id="fileInput" accept=".csv" class="hidden">
+    </div>
+  </div>
+
+  <div id="appView" class="hidden">
+    <div class="controls">
+      <div class="search-row">
+        <input type="text" id="search" placeholder="Search name, flags, opener...">
+      </div>
+      <div class="filter-row">
+        <select id="sortBy">
+          <option value="signal_desc">Sort: Most signals (hottest)</option>
+          <option value="signal_asc">Sort: Fewest signals</option>
+          <option value="name_asc">Sort: Name A–Z</option>
+          <option value="reviews_desc">Sort: Most reviews</option>
+          <option value="rating_desc">Sort: Highest rating</option>
+        </select>
+      </div>
+      <div class="chips" id="statusChips"></div>
+    </div>
+    <div id="leadList"></div>
+  </div>
+</div>
+
+<div class="footbar hidden" id="footbar">
+  <span class="info" id="footInfo">0 leads</span>
+  <div style="display:flex; gap:8px;">
+    <button id="newCsvBtn">Load new CSV</button>
+    <button class="export" id="exportBtn">Export progress</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORE_KEY = 'cione_leads_v1';
+const STATUS = {
+  new:       { label: 'New',       cls: 's-new' },
+  contacted: { label: 'Contacted', cls: 's-contacted' },
+  replied:   { label: 'Replied',   cls: 's-replied' },
+  meeting:   { label: 'Meeting',   cls: 's-meeting' },
+  won:       { label: 'Won',       cls: 's-won' },
+  dead:      { label: 'Dead',      cls: 's-dead' },
+};
+const STATUS_ORDER = ['new','contacted','replied','meeting','won','dead'];
+
+let leads = [];          // working set with status+notes
+let activeStatus = 'all';
+let searchTerm = '';
+let sortBy = 'signal_desc';
+
+// ---------- Persistence ----------
+async function saveState() {
+  try {
+    await window.storage.set(STORE_KEY, JSON.stringify(leads), false);
+    setSync('saved');
+  } catch (e) {
+    setSync('local only');
+    console.error('save failed', e);
+  }
+}
+async function loadState() {
+  try {
+    const r = await window.storage.get(STORE_KEY, false);
+    if (r && r.value) { leads = JSON.parse(r.value); return true; }
+  } catch (e) { /* no saved state yet */ }
+  return false;
+}
+function setSync(t){ document.getElementById('syncStatus').textContent = t; }
+
+// ---------- CSV ingest ----------
+function ingestCSV(file) {
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: (res) => {
+      const rows = res.data.filter(r => (r.name || '').trim());
+      leads = rows.map((r, i) => ({
+        id: 'L' + i + '_' + (r.name||'').replace(/\W/g,'').slice(0,12),
+        name: r.name || '',
+        category: (r.category || '').replace(/_/g,' '),
+        phone: r.phone || '',
+        website: r.website || '',
+        address: r.address || '',
+        rating: parseFloat(r.rating) || 0,
+        reviews: parseInt(r.review_count) || 0,
+        signalCount: parseInt(r.signal_count) || 0,
+        flags: (r.signal_flags || '').split(';').map(s=>s.trim()).filter(Boolean),
+        opener: r.suggested_opener || '',
+        contactName: r.contact_name || '',
+        contactTitle: r.contact_title || '',
+        contactEmail: r.contact_email || '',
+        contactLinkedin: r.contact_linkedin || '',
+        status: 'new',
+        note: '',
+        noteOpen: false,
+      }));
+      saveState();
+      showApp();
+      toast(`${leads.length} leads loaded`);
+    }
+  });
+}
+
+// ---------- Rendering ----------
+function statusCounts() {
+  const c = { all: leads.length };
+  STATUS_ORDER.forEach(s => c[s] = 0);
+  leads.forEach(l => c[l.status] = (c[l.status]||0)+1);
+  return c;
+}
+
+function renderStats() {
+  const c = statusCounts();
+  const el = document.getElementById('stats');
+  const cells = [
+    { n: c.all, l: 'Total', accent: true },
+    { n: c.new, l: 'New' },
+    { n: c.contacted, l: 'Contacted' },
+    { n: c.replied + c.meeting, l: 'Active' },
+    { n: c.won, l: 'Won' },
+  ];
+  el.innerHTML = cells.map(s =>
+    `<div class="stat ${s.accent?'accent':''}"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`
+  ).join('');
+}
+
+function renderChips() {
+  const c = statusCounts();
+  const el = document.getElementById('statusChips');
+  const chips = [['all','All ('+c.all+')']].concat(
+    STATUS_ORDER.map(s => [s, STATUS[s].label + ' (' + c[s] + ')'])
+  );
+  el.innerHTML = chips.map(([k,lab]) =>
+    `<div class="chip ${activeStatus===k?'active':''}" data-status="${k}">${lab}</div>`
+  ).join('');
+  el.querySelectorAll('.chip').forEach(ch =>
+    ch.onclick = () => { activeStatus = ch.dataset.status; renderChips(); renderLeads(); }
+  );
+}
+
+function scoreClass(n) { return n >= 4 ? 'hot' : n >= 2 ? 'warm' : 'cool'; }
+
+function getFiltered() {
+  let out = leads.slice();
+  if (activeStatus !== 'all') out = out.filter(l => l.status === activeStatus);
+  if (searchTerm) {
+    const t = searchTerm.toLowerCase();
+    out = out.filter(l =>
+      l.name.toLowerCase().includes(t) ||
+      l.flags.join(' ').toLowerCase().includes(t) ||
+      l.opener.toLowerCase().includes(t) ||
+      (l.contactName||'').toLowerCase().includes(t)
+    );
+  }
+  const s = {
+    signal_desc: (a,b)=>b.signalCount-a.signalCount,
+    signal_asc:  (a,b)=>a.signalCount-b.signalCount,
+    name_asc:    (a,b)=>a.name.localeCompare(b.name),
+    reviews_desc:(a,b)=>b.reviews-a.reviews,
+    rating_desc: (a,b)=>b.rating-a.rating,
+  }[sortBy];
+  return out.sort(s);
+}
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderLeads() {
+  const list = document.getElementById('leadList');
+  const data = getFiltered();
+  document.getElementById('footInfo').textContent =
+    `${data.length} shown · ${leads.length} total`;
+
+  if (!data.length) {
+    list.innerHTML = `<div class="empty">No leads match this filter.</div>`;
+    return;
+  }
+
+  list.innerHTML = data.map(l => {
+    const sc = scoreClass(l.signalCount);
+    const flagsHtml = l.flags.map(f => `<span class="flag">${esc(f)}</span>`).join('');
+    const statusOpts = STATUS_ORDER.map(s =>
+      `<option value="${s}" ${l.status===s?'selected':''}>${STATUS[s].label}</option>`
+    ).join('');
+
+    let contactHtml = '';
+    if (l.contactName || l.contactEmail || l.phone || l.website) {
+      const parts = [];
+      if (l.contactName) parts.push(`<span class="person">${esc(l.contactName)}</span>${l.contactTitle?` <span class="title">· ${esc(l.contactTitle)}</span>`:''}`);
+      if (l.contactEmail) parts.push(`<a href="mailto:${esc(l.contactEmail)}">${esc(l.contactEmail)}</a>`);
+      if (l.phone) parts.push(`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`);
+      if (l.website) parts.push(`<a href="${esc(l.website)}" target="_blank" rel="noopener">site ↗</a>`);
+      if (l.contactLinkedin) parts.push(`<a href="${esc(l.contactLinkedin)}" target="_blank" rel="noopener">in ↗</a>`);
+      contactHtml = `<div class="contact-row">${parts.join('')}</div>`;
+    }
+
+    const openerHtml = l.opener ? `
+      <div class="opener">
+        <button class="copy" data-copy="${esc(l.opener)}">copy</button>
+        ${esc(l.opener)}
+      </div>` : '';
+
+    return `
+    <div class="lead ${STATUS[l.status].cls}" data-id="${l.id}">
+      <div class="lead-top">
+        <div>
+          <div class="lead-name">${esc(l.name)}</div>
+          <div class="lead-cat">${esc(l.category||'')}${l.rating?` · ★${l.rating} (${l.reviews})`:''}</div>
+        </div>
+        <div class="score ${sc}">⚡${l.signalCount}</div>
+      </div>
+      ${flagsHtml ? `<div class="flags">${flagsHtml}</div>` : ''}
+      ${contactHtml}
+      ${openerHtml}
+      <div class="lead-actions">
+        <select class="status-select" data-id="${l.id}">${statusOpts}</select>
+        <button class="note-btn ${l.note?'has-note':''}" data-note="${l.id}">${l.note?'✎ Note':'+ Note'}</button>
+      </div>
+      <div class="note-area ${l.noteOpen?'open':''}" data-notearea="${l.id}">
+        <textarea placeholder="Call notes, next steps, context..." data-noteinput="${l.id}">${esc(l.note)}</textarea>
+      </div>
+    </div>`;
+  }).join('');
+
+  wireLeadEvents();
+}
+
+function wireLeadEvents() {
+  document.querySelectorAll('.status-select').forEach(sel => {
+    sel.onchange = () => {
+      const l = leads.find(x => x.id === sel.dataset.id);
+      l.status = sel.value;
+      saveState(); renderStats(); renderChips();
+      // re-render so card moves if filtered by status
+      if (activeStatus !== 'all') renderLeads();
+      else { const card = sel.closest('.lead'); card.className = 'lead ' + STATUS[l.status].cls; }
+    };
+  });
+  document.querySelectorAll('[data-note]').forEach(btn => {
+    btn.onclick = () => {
+      const l = leads.find(x => x.id === btn.dataset.note);
+      l.noteOpen = !l.noteOpen;
+      document.querySelector(`[data-notearea="${l.id}"]`).classList.toggle('open', l.noteOpen);
+    };
+  });
+  document.querySelectorAll('[data-noteinput]').forEach(ta => {
+    ta.oninput = () => {
+      const l = leads.find(x => x.id === ta.dataset.noteinput);
+      l.note = ta.value;
+    };
+    ta.onblur = () => {
+      const l = leads.find(x => x.id === ta.dataset.noteinput);
+      const btn = document.querySelector(`[data-note="${l.id}"]`);
+      btn.classList.toggle('has-note', !!l.note);
+      btn.textContent = l.note ? '✎ Note' : '+ Note';
+      saveState();
+    };
+  });
+  document.querySelectorAll('.copy').forEach(btn => {
+    btn.onclick = () => {
+      navigator.clipboard.writeText(btn.dataset.copy).then(()=>toast('Opener copied'));
+    };
+  });
+}
+
+// ---------- Export ----------
+function exportCSV() {
+  const fields = ['name','status','note','contact_name','contact_email','phone','website',
+                  'signal_count','signal_flags','suggested_opener','rating','review_count','address','category'];
+  const rows = leads.map(l => ({
+    name: l.name, status: l.status, note: l.note,
+    contact_name: l.contactName, contact_email: l.contactEmail,
+    phone: l.phone, website: l.website,
+    signal_count: l.signalCount, signal_flags: l.flags.join('; '),
+    suggested_opener: l.opener, rating: l.rating, review_count: l.reviews,
+    address: l.address, category: l.category,
+  }));
+  const csv = Papa.unparse({ fields, data: rows });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'cione_leads_progress.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported with your progress');
+}
+
+// ---------- View switching ----------
+function showApp() {
+  document.getElementById('uploadView').classList.add('hidden');
+  document.getElementById('appView').classList.remove('hidden');
+  document.getElementById('footbar').classList.remove('hidden');
+  renderStats(); renderChips(); renderLeads();
+}
+function showUpload() {
+  document.getElementById('uploadView').classList.remove('hidden');
+  document.getElementById('appView').classList.add('hidden');
+  document.getElementById('footbar').classList.add('hidden');
+}
+
+// ---------- Toast ----------
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+// ---------- Wiring ----------
+const fileInput = document.getElementById('fileInput');
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.onclick = () => fileInput.click();
+fileInput.onchange = (e) => { if (e.target.files[0]) ingestCSV(e.target.files[0]); };
+['dragover','dragenter'].forEach(ev => uploadZone.addEventListener(ev, e => { e.preventDefault(); uploadZone.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => uploadZone.addEventListener(ev, e => { e.preventDefault(); uploadZone.classList.remove('drag'); }));
+uploadZone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) ingestCSV(e.dataTransfer.files[0]); });
+
+document.getElementById('search').oninput = (e) => { searchTerm = e.target.value; renderLeads(); };
+document.getElementById('sortBy').onchange = (e) => { sortBy = e.target.value; renderLeads(); };
+document.getElementById('exportBtn').onclick = exportCSV;
+document.getElementById('newCsvBtn').onclick = () => {
+  if (confirm('Load a new CSV? This replaces your current list and progress.')) showUpload();
+};
+
+// ---------- Boot ----------
+(async function init(){
+  const had = await loadState();
+  if (had && leads.length) { setSync('saved'); showApp(); }
+  else showUpload();
+})();
+</script>
+</body>
+</html>

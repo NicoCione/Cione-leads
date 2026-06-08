@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cione Leads</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Spline+Sans+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0e0f0d; --surface: #181a16; --surface-2: #21241e; --border: #2e322a;
+    --text: #eef0e8; --muted: #8d9382; --accent: #c8f135; --accent-dim: #8fa830;
+    --hot: #ff6b35; --warm: #ffb01f; --cool: #4a9d8e; --new: #6c7283;
+    --won: #c8f135; --dead: #5a4040;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Archivo', sans-serif; background: var(--bg); color: var(--text);
+    line-height: 1.45; overflow-x: hidden;
+    background-image: radial-gradient(circle at 15% 0%, rgba(200,241,53,0.06), transparent 40%);
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 14px 120px; }
+
+  header {
+    position: sticky; top: 0; z-index: 50; background: rgba(14,15,13,0.92);
+    backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+    padding: 16px 14px 12px; margin: 0 -14px 14px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; justify-content: space-between; }
+  .brand .left { display: flex; align-items: baseline; gap: 8px; }
+  .brand h1 { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase; }
+  .brand .dot { color: var(--accent); }
+  .brand span.sub { font-family: 'Spline Sans Mono', monospace; font-size: 11px; color: var(--muted); }
+  .signout { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer;
+             font-family: 'Spline Sans Mono', monospace; text-decoration: underline; }
+
+  .stats { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; }
+  .stats::-webkit-scrollbar { display: none; }
+  .stat { flex: 1 0 auto; min-width: 68px; background: var(--surface); border: 1px solid var(--border);
+          border-radius: 10px; padding: 8px 10px; }
+  .stat .n { font-family: 'Spline Sans Mono', monospace; font-size: 18px; font-weight: 600; }
+  .stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat.accent .n { color: var(--accent); }
+
+  .controls { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  input[type=text], input[type=email], input[type=password], select {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 11px 12px; font-family: 'Archivo', sans-serif; font-size: 14px;
+    width: 100%; outline: none; transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--accent-dim); }
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+          border-radius: 20px; padding: 6px 13px; font-size: 12px; font-weight: 600; cursor: pointer;
+          white-space: nowrap; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.3px; }
+  .chip.active { background: var(--accent); color: #0e0f0d; border-color: var(--accent); }
+
+  .lead { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--new);
+          border-radius: 12px; padding: 13px 14px; margin-bottom: 10px; transition: all 0.15s; }
+  .lead.s-contacted { border-left-color: var(--warm); }
+  .lead.s-replied  { border-left-color: var(--cool); }
+  .lead.s-meeting  { border-left-color: var(--accent); }
+  .lead.s-won { border-left-color: var(--won); background: linear-gradient(90deg, rgba(200,241,53,0.07), var(--surface) 60%); }
+  .lead.s-dead { border-left-color: var(--dead); opacity: 0.5; }
+  .lead-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .lead-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .lead-cat { font-size: 11px; color: var(--muted); font-family: 'Spline Sans Mono', monospace; margin-top: 1px; }
+  .score { flex: 0 0 auto; font-family: 'Spline Sans Mono', monospace; font-weight: 600; font-size: 12px;
+           padding: 3px 8px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border); }
+  .score.hot { color: var(--hot); border-color: rgba(255,107,53,0.4); }
+  .score.warm { color: var(--warm); border-color: rgba(255,176,31,0.4); }
+  .score.cool { color: var(--muted); }
+  .flags { display: flex; flex-wrap: wrap; gap: 5px; margin: 9px 0; }
+  .flag { font-size: 10.5px; background: var(--surface-2); border: 1px solid var(--border);
+          color: #b9c0a8; padding: 2px 7px; border-radius: 6px; font-weight: 500; }
+  .opener { font-size: 13px; color: #cdd3c0; background: var(--surface-2); border-radius: 8px;
+            padding: 9px 11px; margin: 8px 0; font-style: italic; position: relative; border: 1px solid var(--border); }
+  .opener .copy { position: absolute; top: 6px; right: 6px; background: var(--border); border: none;
+                  color: var(--text); border-radius: 5px; font-size: 10px; padding: 3px 7px; cursor: pointer;
+                  font-family: 'Spline Sans Mono', monospace; font-style: normal; }
+  .opener .copy:active { background: var(--accent); color: #0e0f0d; }
+  .contact-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; font-size: 13px; }
+  .contact-row a { color: var(--accent-dim); text-decoration: none; font-weight: 600; }
+  .contact-row .person { color: var(--text); font-weight: 700; }
+  .contact-row .title { color: var(--muted); }
+  .lead-actions { display: flex; gap: 7px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .status-select { flex: 1; min-width: 130px; padding: 8px 10px; font-size: 13px; font-weight: 600;
+                   border-radius: 9px; cursor: pointer; }
+  .note-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+              border-radius: 9px; padding: 8px 12px; font-size: 13px; cursor: pointer; font-weight: 600; }
+  .note-btn.has-note { color: var(--accent); border-color: var(--accent-dim); }
+  .note-area { margin-top: 9px; display: none; }
+  .note-area.open { display: block; }
+  .note-area textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+                        color: var(--text); border-radius: 9px; padding: 10px; font-family: 'Archivo', sans-serif;
+                        font-size: 13px; resize: vertical; min-height: 60px; outline: none; }
+  .note-area textarea:focus { border-color: var(--accent-dim); }
+  .empty { text-align: center; color: var(--muted); padding: 50px 20px; font-size: 14px; }
+
+  .footbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: rgba(14,15,13,0.94);
+             backdrop-filter: blur(12px); border-top: 1px solid var(--border); padding: 10px 14px;
+             display: flex; gap: 8px; justify-content: space-between; align-items: center; }
+  .footbar .info { font-size: 12px; color: var(--muted); font-family: 'Spline Sans Mono', monospace; }
+  .footbar button { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+                    border-radius: 9px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .footbar .export { background: var(--accent); color: #0e0f0d; border-color: var(--accent); }
+  .hidden { display: none !important; }
+
+  /* Auth screen */
+  .auth-card { max-width: 380px; margin: 60px auto 0; background: var(--surface);
+               border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px; }
+  .auth-card h2 { font-size: 20px; margin-bottom: 4px; }
+  .auth-card p.hint { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .auth-card label { font-size: 12px; color: var(--muted); text-transform: uppercase;
+                     letter-spacing: 0.5px; display: block; margin: 12px 0 5px; }
+  .auth-card button.primary { width: 100%; background: var(--accent); color: #0e0f0d; border: none;
+                              border-radius: 10px; padding: 13px; font-weight: 800; font-size: 14px;
+                              cursor: pointer; margin-top: 18px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .auth-toggle { text-align: center; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .auth-toggle a { color: var(--accent-dim); cursor: pointer; font-weight: 600; }
+  .auth-msg { font-size: 13px; margin-top: 12px; padding: 9px 11px; border-radius: 8px; display: none; }
+  .auth-msg.err { display: block; background: rgba(255,107,53,0.12); color: var(--hot); border: 1px solid rgba(255,107,53,0.3); }
+  .auth-msg.ok  { display: block; background: rgba(200,241,53,0.12); color: var(--accent); border: 1px solid rgba(200,241,53,0.3); }
+
+  /* Config screen */
+  .config-card { max-width: 420px; margin: 50px auto 0; background: var(--surface);
+                 border: 1px solid var(--border); border-radius: 16px; padding: 26px 24px; }
+  .config-card h2 { font-size: 19px; margin-bottom: 6px; }
+  .config-card p { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  .config-card code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px;
+                      font-family: 'Spline Sans Mono', monospace; font-size: 12px; }
+  .config-card label { font-size: 12px; color: var(--muted); text-transform: uppercase;
+                       letter-spacing: 0.5px; display: block; margin: 14px 0 5px; }
+
+  .toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%) translateY(20px);
+           background: var(--accent); color: #0e0f0d; padding: 10px 18px; border-radius: 10px; font-weight: 700;
+           font-size: 13px; opacity: 0; transition: all 0.25s; z-index: 100; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .uploadmini { border: 1.5px dashed var(--border); border-radius: 12px; padding: 16px; text-align: center;
+                cursor: pointer; transition: all 0.2s; background: var(--surface); margin-bottom: 14px; font-size: 13px; color: var(--muted); }
+  .uploadmini:hover, .uploadmini.drag { border-color: var(--accent); color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="left"><h1>CIONE<span class="dot">.</span>LEADS</h1></div>
+      <span class="sub" id="syncStatus"></span>
+      <button class="signout hidden" id="signoutBtn">sign out</button>
+    </div>
+    <div class="stats hidden" id="stats"></div>
+  </header>
+
+  <!-- CONFIG: first-run, enter Supabase creds (stored in localStorage of the host site) -->
+  <div id="configView">
+    <div class="config-card">
+      <h2>Connect Supabase</h2>
+      <p>One-time setup. Paste your project's <code>URL</code> and <code>anon key</code>
+         (Supabase → Project Settings → API). These are safe to expose in a frontend —
+         your data is protected by Row Level Security.</p>
+      <label>Project URL</label>
+      <input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co">
+      <label>Anon / public key</label>
+      <input type="text" id="cfgKey" placeholder="eyJhbGc...">
+      <button class="primary" style="width:100%;background:var(--accent);color:#0e0f0d;border:none;border-radius:10px;padding:13px;font-weight:800;margin-top:18px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;" id="cfgSave">Save & continue</button>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <div id="authView" class="hidden">
+    <div class="auth-card">
+      <h2 id="authTitle">Sign in</h2>
+      <p class="hint" id="authHint">Welcome back to your pipeline.</p>
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="you@cione.solutions" autocomplete="email">
+      <label>Password</label>
+      <input type="password" id="authPass" placeholder="••••••••" autocomplete="current-password">
+      <button class="primary" id="authBtn">Sign in</button>
+      <div class="auth-toggle" id="authToggle">No account yet? <a id="authSwitch">Create one</a></div>
+      <div class="auth-msg" id="authMsg"></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appView" class="hidden">
+    <div class="uploadmini" id="uploadZone">
+      ▲ Import leads from <code>cione_leads.csv</code> &nbsp;·&nbsp; tap or drag-drop
+      <input type="file" id="fileInput" accept=".csv" class="hidden">
+    </div>
+    <div class="controls">
+      <input type="text" id="search" placeholder="Search name, flags, opener...">
+      <select id="sortBy">
+        <option value="signal_desc">Sort: Most signals (hottest)</option>
+        <option value="signal_asc">Sort: Fewest signals</option>
+        <option value="name_asc">Sort: Name A–Z</option>
+        <option value="reviews_desc">Sort: Most reviews</option>
+        <option value="rating_desc">Sort: Highest rating</option>
+      </select>
+      <div class="chips" id="statusChips"></div>
+    </div>
+    <div id="leadList"></div>
+  </div>
+</div>
+
+<div class="footbar hidden" id="footbar">
+  <span class="info" id="footInfo">0 leads</span>
+  <div style="display:flex; gap:8px;">
+    <button id="resetCfgBtn">⚙</button>
+    <button class="export" id="exportBtn">Export CSV</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CFG_KEY = 'cione_sb_cfg';
+const STATUS = {
+  new:{label:'New'}, contacted:{label:'Contacted'}, replied:{label:'Replied'},
+  meeting:{label:'Meeting'}, won:{label:'Won'}, dead:{label:'Dead'}
+};
+const STATUS_ORDER = ['new','contacted','replied','meeting','won','dead'];
+const STATUS_CLS = { new:'s-new',contacted:'s-contacted',replied:'s-replied',meeting:'s-meeting',won:'s-won',dead:'s-dead' };
+
+let sb = null;
+let leads = [];
+let activeStatus = 'all';
+let searchTerm = '';
+let sortBy = 'signal_desc';
+let authMode = 'signin';
+let saveTimers = {};
+
+// ---------- Config (Supabase creds) ----------
+// NOTE: stored in localStorage of the HOSTING site (Vercel/Cloudflare), not inside Claude.
+// To hard-code instead, set these two constants and the config screen is skipped.
+const HARDCODED_URL = 'https://bwoexsdalrrkhkkcrmht.supabase.co';
+const HARDCODED_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3b2V4c2RhbHJya2hra2NybWh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NTMwMzMsImV4cCI6MjA5NjQyOTAzM30.57GMfK9POOqw_f8uGy-zGwd3xqD_MB0QA1RiNL2ck_A';
+
+function getCfg() {
+  if (HARDCODED_URL && HARDCODED_KEY) return { url: HARDCODED_URL, key: HARDCODED_KEY };
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)); } catch { return null; }
+}
+function saveCfg(url, key) { localStorage.setItem(CFG_KEY, JSON.stringify({ url, key })); }
+
+// ---------- Boot ----------
+(async function init() {
+  const cfg = getCfg();
+  if (!cfg || !cfg.url || !cfg.key) { showView('config'); return; }
+  sb = supabase.createClient(cfg.url, cfg.key);
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { await onAuthed(); }
+  else { showView('auth'); }
+})();
+
+// ---------- Config screen ----------
+document.getElementById('cfgSave').onclick = () => {
+  const url = document.getElementById('cfgUrl').value.trim();
+  const key = document.getElementById('cfgKey').value.trim();
+  if (!url || !key) { toast('Both fields required'); return; }
+  saveCfg(url, key);
+  sb = supabase.createClient(url, key);
+  showView('auth');
+};
+document.getElementById('resetCfgBtn').onclick = () => {
+  if (confirm('Re-enter Supabase connection settings?')) { localStorage.removeItem(CFG_KEY); location.reload(); }
+};
+
+// ---------- Auth ----------
+const authMsg = (txt, ok) => {
+  const m = document.getElementById('authMsg');
+  m.textContent = txt; m.className = 'auth-msg ' + (ok ? 'ok' : 'err');
+};
+document.getElementById('authSwitch').onclick = () => {
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  document.getElementById('authTitle').textContent = authMode === 'signin' ? 'Sign in' : 'Create account';
+  document.getElementById('authHint').textContent = authMode === 'signin'
+    ? 'Welcome back to your pipeline.' : 'Set up your login — takes a second.';
+  document.getElementById('authBtn').textContent = authMode === 'signin' ? 'Sign in' : 'Create account';
+  document.getElementById('authToggle').innerHTML = authMode === 'signin'
+    ? 'No account yet? <a id="authSwitch">Create one</a>'
+    : 'Already have one? <a id="authSwitch">Sign in</a>';
+  document.getElementById('authSwitch').onclick = arguments.callee;
+  document.getElementById('authMsg').className = 'auth-msg';
+};
+document.getElementById('authBtn').onclick = async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  if (!email || !pass) { authMsg('Email and password required', false); return; }
+  if (authMode === 'signup') {
+    const { error } = await sb.auth.signUp({ email, password: pass });
+    if (error) return authMsg(error.message, false);
+    authMsg('Account created. If email confirmation is on, check your inbox, then sign in.', true);
+    authMode = 'signin';
+  } else {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) return authMsg(error.message, false);
+    await onAuthed();
+  }
+};
+document.getElementById('signoutBtn').onclick = async () => {
+  await sb.auth.signOut(); location.reload();
+};
+
+async function onAuthed() {
+  showView('app');
+  document.getElementById('signoutBtn').classList.remove('hidden');
+  document.getElementById('stats').classList.remove('hidden');
+  await loadLeads();
+  subscribeRealtime();
+}
+
+// ---------- Data ----------
+async function loadLeads() {
+  setSync('syncing…');
+  const { data, error } = await sb.from('leads').select('*').order('signal_count', { ascending: false });
+  if (error) { setSync('error'); toast('Load failed: ' + error.message); return; }
+  leads = data || [];
+  setSync('synced');
+  renderAll();
+}
+
+function subscribeRealtime() {
+  sb.channel('leads-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, payload => {
+      const r = payload.new;
+      if (payload.eventType === 'DELETE') {
+        leads = leads.filter(l => l.id !== payload.old.id);
+      } else if (payload.eventType === 'INSERT') {
+        if (!leads.find(l => l.id === r.id)) leads.push(r);
+      } else if (payload.eventType === 'UPDATE') {
+        const i = leads.findIndex(l => l.id === r.id);
+        if (i >= 0) leads[i] = { ...leads[i], ...r };
+      }
+      renderAll();
+    }).subscribe();
+}
+
+async function updateLead(id, patch) {
+  const l = leads.find(x => x.id === id);
+  if (l) Object.assign(l, patch);
+  const { error } = await sb.from('leads').update(patch).eq('id', id);
+  if (error) { toast('Save failed'); setSync('error'); }
+  else setSync('synced');
+}
+
+// ---------- CSV import ----------
+function ingestCSV(file) {
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: async (res) => {
+      const { data: { user } } = await sb.auth.getUser();
+      const rows = res.data.filter(r => (r.name || '').trim()).map(r => ({
+        owner_id: user.id,
+        name: r.name || '',
+        category: (r.category || '').replace(/_/g, ' '),
+        phone: r.phone || '', website: r.website || '', address: r.address || '',
+        rating: parseFloat(r.rating) || null,
+        review_count: parseInt(r.review_count) || null,
+        signal_count: parseInt(r.signal_count) || 0,
+        signal_flags: r.signal_flags || '',
+        suggested_opener: r.suggested_opener || '',
+        contact_name: r.contact_name || '', contact_title: r.contact_title || '',
+        contact_email: r.contact_email || '', contact_linkedin: r.contact_linkedin || '',
+        status: r.status || 'new', note: r.note || '',
+        dedupe_key: ((r.name||'') + '|' + (r.address||'')).toLowerCase().replace(/\s+/g,' ').trim(),
+      }));
+      setSync('importing…');
+      // Upsert in batches on (owner_id, dedupe_key) so re-imports update, not duplicate
+      const CHUNK = 200;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const batch = rows.slice(i, i + CHUNK);
+        const { error } = await sb.from('leads').upsert(batch, { onConflict: 'owner_id,dedupe_key' });
+        if (error) { toast('Import error: ' + error.message); setSync('error'); return; }
+      }
+      toast(`${rows.length} leads imported`);
+      await loadLeads();
+    }
+  });
+}
+
+// ---------- Rendering ----------
+function renderAll() { renderStats(); renderChips(); renderLeads(); }
+function setSync(t) { document.getElementById('syncStatus').textContent = t; }
+
+function statusCounts() {
+  const c = { all: leads.length };
+  STATUS_ORDER.forEach(s => c[s] = 0);
+  leads.forEach(l => c[l.status] = (c[l.status] || 0) + 1);
+  return c;
+}
+function renderStats() {
+  const c = statusCounts();
+  document.getElementById('stats').innerHTML = [
+    { n: c.all, l: 'Total', a: true }, { n: c.new, l: 'New' },
+    { n: c.contacted, l: 'Contacted' }, { n: c.replied + c.meeting, l: 'Active' },
+    { n: c.won, l: 'Won' },
+  ].map(s => `<div class="stat ${s.a?'accent':''}"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`).join('');
+}
+function renderChips() {
+  const c = statusCounts();
+  const el = document.getElementById('statusChips');
+  el.innerHTML = [['all','All ('+c.all+')']].concat(STATUS_ORDER.map(s=>[s,STATUS[s].label+' ('+c[s]+')']))
+    .map(([k,lab]) => `<div class="chip ${activeStatus===k?'active':''}" data-status="${k}">${lab}</div>`).join('');
+  el.querySelectorAll('.chip').forEach(ch => ch.onclick = () => { activeStatus = ch.dataset.status; renderChips(); renderLeads(); });
+}
+function scoreClass(n){ return n>=4?'hot':n>=2?'warm':'cool'; }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function getFiltered() {
+  let out = leads.slice();
+  if (activeStatus !== 'all') out = out.filter(l => l.status === activeStatus);
+  if (searchTerm) {
+    const t = searchTerm.toLowerCase();
+    out = out.filter(l => (l.name||'').toLowerCase().includes(t) ||
+      (l.signal_flags||'').toLowerCase().includes(t) ||
+      (l.suggested_opener||'').toLowerCase().includes(t) ||
+      (l.contact_name||'').toLowerCase().includes(t));
+  }
+  const cmp = {
+    signal_desc:(a,b)=>(b.signal_count||0)-(a.signal_count||0),
+    signal_asc:(a,b)=>(a.signal_count||0)-(b.signal_count||0),
+    name_asc:(a,b)=>(a.name||'').localeCompare(b.name||''),
+    reviews_desc:(a,b)=>(b.review_count||0)-(a.review_count||0),
+    rating_desc:(a,b)=>(b.rating||0)-(a.rating||0),
+  }[sortBy];
+  return out.sort(cmp);
+}
+
+function renderLeads() {
+  const list = document.getElementById('leadList');
+  const data = getFiltered();
+  document.getElementById('footInfo').textContent = `${data.length} shown · ${leads.length} total`;
+  if (!data.length) { list.innerHTML = `<div class="empty">No leads match this filter.</div>`; return; }
+
+  list.innerHTML = data.map(l => {
+    const flags = (l.signal_flags||'').split(';').map(s=>s.trim()).filter(Boolean);
+    const flagsHtml = flags.map(f => `<span class="flag">${esc(f)}</span>`).join('');
+    const statusOpts = STATUS_ORDER.map(s => `<option value="${s}" ${l.status===s?'selected':''}>${STATUS[s].label}</option>`).join('');
+    let contact = '';
+    const parts = [];
+    if (l.contact_name) parts.push(`<span class="person">${esc(l.contact_name)}</span>${l.contact_title?` <span class="title">· ${esc(l.contact_title)}</span>`:''}`);
+    if (l.contact_email) parts.push(`<a href="mailto:${esc(l.contact_email)}">${esc(l.contact_email)}</a>`);
+    if (l.phone) parts.push(`<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>`);
+    if (l.website) parts.push(`<a href="${esc(l.website)}" target="_blank" rel="noopener">site ↗</a>`);
+    if (l.contact_linkedin) parts.push(`<a href="${esc(l.contact_linkedin)}" target="_blank" rel="noopener">in ↗</a>`);
+    if (parts.length) contact = `<div class="contact-row">${parts.join('')}</div>`;
+    const opener = l.suggested_opener ? `<div class="opener"><button class="copy" data-copy="${esc(l.suggested_opener)}">copy</button>${esc(l.suggested_opener)}</div>` : '';
+    return `<div class="lead ${STATUS_CLS[l.status]||'s-new'}" data-id="${l.id}">
+      <div class="lead-top">
+        <div><div class="lead-name">${esc(l.name)}</div>
+        <div class="lead-cat">${esc(l.category||'')}${l.rating?` · ★${l.rating} (${l.review_count||0})`:''}</div></div>
+        <div class="score ${scoreClass(l.signal_count||0)}">⚡${l.signal_count||0}</div>
+      </div>
+      ${flagsHtml?`<div class="flags">${flagsHtml}</div>`:''}
+      ${contact}${opener}
+      <div class="lead-actions">
+        <select class="status-select" data-id="${l.id}">${statusOpts}</select>
+        <button class="note-btn ${l.note?'has-note':''}" data-note="${l.id}">${l.note?'✎ Note':'+ Note'}</button>
+      </div>
+      <div class="note-area" data-notearea="${l.id}">
+        <textarea placeholder="Call notes, next steps, context..." data-noteinput="${l.id}">${esc(l.note)}</textarea>
+      </div>
+    </div>`;
+  }).join('');
+  wireLeadEvents();
+}
+
+function wireLeadEvents() {
+  document.querySelectorAll('.status-select').forEach(sel => {
+    sel.onchange = () => {
+      updateLead(sel.dataset.id, { status: sel.value });
+      const card = sel.closest('.lead');
+      card.className = 'lead ' + (STATUS_CLS[sel.value]||'s-new');
+      renderStats(); renderChips();
+      if (activeStatus !== 'all') renderLeads();
+    };
+  });
+  document.querySelectorAll('[data-note]').forEach(btn => {
+    btn.onclick = () => document.querySelector(`[data-notearea="${btn.dataset.note}"]`).classList.toggle('open');
+  });
+  document.querySelectorAll('[data-noteinput]').forEach(ta => {
+    ta.oninput = () => {
+      const id = ta.dataset.noteinput;
+      clearTimeout(saveTimers[id]);
+      saveTimers[id] = setTimeout(() => {
+        updateLead(id, { note: ta.value });
+        const btn = document.querySelector(`[data-note="${id}"]`);
+        btn.classList.toggle('has-note', !!ta.value);
+        btn.textContent = ta.value ? '✎ Note' : '+ Note';
+      }, 700);
+    };
+  });
+  document.querySelectorAll('.copy').forEach(btn => {
+    btn.onclick = () => navigator.clipboard.writeText(btn.dataset.copy).then(()=>toast('Opener copied'));
+  });
+}
+
+// ---------- Export ----------
+function exportCSV() {
+  const fields = ['name','status','note','contact_name','contact_email','phone','website',
+                  'signal_count','signal_flags','suggested_opener','rating','review_count','address','category'];
+  const csv = Papa.unparse({ fields, data: leads.map(l => {
+    const o = {}; fields.forEach(f => o[f] = l[f] ?? ''); return o;
+  })});
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'cione_leads_progress.csv'; a.click();
+  toast('Exported');
+}
+
+// ---------- View switch + misc ----------
+function showView(v) {
+  document.getElementById('configView').classList.toggle('hidden', v !== 'config');
+  document.getElementById('authView').classList.toggle('hidden', v !== 'auth');
+  document.getElementById('appView').classList.toggle('hidden', v !== 'app');
+  document.getElementById('footbar').classList.toggle('hidden', v !== 'app');
+}
+let toastTimer;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1800); }
+
+const fileInput = document.getElementById('fileInput');
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.onclick = () => fileInput.click();
+fileInput.onchange = (e) => { if (e.target.files[0]) ingestCSV(e.target.files[0]); };
+['dragover','dragenter'].forEach(ev=>uploadZone.addEventListener(ev,e=>{e.preventDefault();uploadZone.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>uploadZone.addEventListener(ev,e=>{e.preventDefault();uploadZone.classList.remove('drag');}));
+uploadZone.addEventListener('drop', e=>{ if(e.dataTransfer.files[0]) ingestCSV(e.dataTransfer.files[0]); });
+document.getElementById('search').oninput = e => { searchTerm = e.target.value; renderLeads(); };
+document.getElementById('sortBy').onchange = e => { sortBy = e.target.value; renderLeads(); };
+document.getElementById('exportBtn').onclick = exportCSV;
+</script>
+</body>
+</html>
